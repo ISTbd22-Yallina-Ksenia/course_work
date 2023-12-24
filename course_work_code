@@ -1,0 +1,327 @@
+from tkinter import *
+from tkinter import ttk
+from tkinter import filedialog
+from tkinter.scrolledtext import ScrolledText
+from tkinter.messagebox import showerror, showwarning, showinfo
+from chardet import *
+import re
+from datetime import datetime
+##главное окно
+def main_window():
+    ##проверить, все ли файлы выбраны
+    def check_if_chosen():
+        if filepath_arr[0] == " " or filepath_arr[1] == " " or save_file == "":
+            showerror(title="Ошибка", message="Вы не заполнили все поля")
+            return False
+        elif filepath_arr[0] != " " and filepath_arr[1] != " " and save_file != "":
+            return True
+    ##функция проверки незаконченного чтения одного файла при окончании чтении второго и завершение чтения этого файла
+    def check_remains(line_lang_1, line_lang_2, file_1, file_2, file):  ##lang_1 - оставшиеся субтитры файла
+        global num_stroka
+        if line_lang_1 != "" and line_lang_2 == "":
+            check_flag = True
+            if line_lang_1.replace("\n", "").isdigit() == False:
+                num_stroka += 1
+                file.write(str(num_stroka))
+                file.write("\n")
+            while check_flag == True:
+                if line_lang_1.replace("\n", "").isdigit():
+                    num_stroka += 1
+                    file.write(str(num_stroka))
+                    file.write("\n")
+                    line_lang_1 = file_1.readline()
+                elif re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_lang_1):
+                    file.write(line_lang_1)
+                    line_lang_1 = file_1.readline()
+                else:
+                    if line_lang_1 == "\n":
+                        line_lang_1 = file_1.readline()
+                    else:
+                        while line_lang_1 != "\n" and check_flag == True:
+                            file.write(line_lang_1)
+                            line_lang_1 = file_1.readline()
+                            check_flag = check_end_of_file(line_lang_1)
+                        file.write("\n")
+    ##функция проверки достижения конца файла
+    def check_end_of_file(line_language):
+        if line_language == "":
+            return False
+        else:
+            return True
+    def auto_execution():  ##функция обработки файлов в автоматическом режиме
+        global filepath_arr, line_eng, line_rus, num_stroka, save_file, encoding_of_file_arr
+        if_success = True
+        if check_if_chosen():
+            file_foreign = filepath_arr[0]
+            file_native = filepath_arr[1]
+            with open(file_foreign, 'r', encoding=encoding_of_file_arr[0]) as file_foreign, open(file_native, 'r', encoding=
+            encoding_of_file_arr[1]) as file_native, open(save_file, 'w', encoding="utf-8") as file:
+                check_flag = True
+                try:
+                    while check_flag == True:
+                        check_flag = check_end_of_file(line_eng)
+                        check_flag = check_end_of_file(line_rus)
+                        FMT = '%H:%M:%S.%f'
+                        if re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_rus) is None:
+                            line_rus = file_native.readline()
+                            check_flag = check_end_of_file(line_rus)
+                        if re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_rus):
+                            if re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_eng) is None:
+                                line_eng = file_foreign.readline()
+                                check_flag = check_end_of_file(line_eng)
+                            while re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_eng) is None and check_flag == True:
+                                line_eng = file_foreign.readline()
+                                check_flag = check_end_of_file(line_eng)
+                            check_flag = check_end_of_file(line_eng)
+                            if re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_rus) and re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_eng):
+                                if (datetime.strptime(
+                                        (re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_rus).group(0)).replace(',', '.'),
+                                        FMT) - datetime.strptime(
+                                        (re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_eng).group(0)).replace(',', '.'),
+                                        FMT)).total_seconds() < 0:
+                                    while check_flag == True and (datetime.strptime(
+                                            (re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_rus).group(0)).replace(',', '.'),
+                                            FMT) - datetime.strptime(
+                                            (re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_eng).group(0)).replace(',', '.'),
+                                            FMT)).total_seconds() < 0:
+                                        num_stroka += 1
+                                        file.write(str(num_stroka))
+                                        file.write("\n")
+                                        file.write(line_rus)
+                                        line_rus = file_native.readline()
+                                        while line_rus != "\n" and check_flag == True:
+                                            file.write(line_rus)
+                                            line_rus = file_native.readline()
+                                            check_flag = check_end_of_file(line_rus)
+                                        check_flag = check_end_of_file(line_rus)
+                                        while re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_rus) is None and check_flag == True:
+                                            line_rus = file_native.readline()
+                                            check_flag = check_end_of_file(line_rus)
+                                        file.write("\n")
+                                        check_flag = check_end_of_file(line_rus)
+                                    check_flag = check_end_of_file(line_rus)
+                                    num_stroka += 1
+                                    file.write(str(num_stroka))
+                                    file.write("\n")
+                                    file.write(line_eng)
+                                    file.write(file_foreign.readline())
+                                    line_eng = file_foreign.readline()
+                                    while line_eng != "\n" and check_flag == True:
+                                        file.write(line_eng)
+                                        line_eng = file_foreign.readline()
+                                        check_flag = check_end_of_file(line_eng)
+                                    file.write("\n")
+                                    check_flag = check_end_of_file(line_eng)
+                                else:
+                                    if re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_rus) and re.search(r"\d\d:\d\d:\d\d,\d\d\d",
+                                                                                                   line_eng):
+                                        while check_flag == True and (datetime.strptime(
+                                                (re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_rus).group(0)).replace(',', '.'),
+                                                FMT) - datetime.strptime(
+                                                (re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_eng).group(0)).replace(',', '.'),
+                                                FMT)).total_seconds() >= 0:
+                                            num_stroka += 1
+                                            file.write(str(num_stroka))
+                                            file.write("\n")
+                                            file.write(line_eng)
+                                            line_eng = file_foreign.readline()
+                                            while line_eng != "\n" and check_flag == True:
+                                                file.write(line_eng)
+                                                line_eng = file_foreign.readline()
+                                                check_flag = check_end_of_file(line_eng)
+                                            check_flag = check_end_of_file(line_eng)
+                                            while re.search(r"\d\d:\d\d:\d\d,\d\d\d", line_eng) is None and check_flag == True:
+                                                line_eng = file_foreign.readline()
+                                                check_flag = check_end_of_file(line_eng)
+                                            file.write("\n")
+                                            check_flag = check_end_of_file(line_eng)
+                                        check_flag = check_end_of_file(line_eng)
+                                        num_stroka += 1
+                                        file.write(str(num_stroka))
+                                        file.write("\n")
+                                        file.write(line_rus)
+                                        file.write(file_native.readline())
+                                        line_rus = file_native.readline()
+                                        while line_rus != "\n" and check_flag == True:
+                                            file.write(line_rus)
+                                            line_rus = file_native.readline()
+                                            check_flag = check_end_of_file(line_rus)
+                                        file.write("\n")
+                                        check_flag = check_end_of_file(line_rus)
+                except ValueError as e:
+                    if_success = False
+                    showerror(title="Ошибка", message="Ошибка в файле: секунды записаны в диапазоне, выходящем за границу 0...59")
+                check_remains(line_rus, line_eng, file_native, file_foreign, file)
+                check_remains(line_eng, line_rus, file_foreign, file_native, file)
+                num_stroka = 0
+                line_rus = " "
+                line_eng = " "
+                filepath_arr = [" ", " "]
+                encoding_of_file_arr = [" ", " "]
+                save_file = ""
+                if if_success == True: showinfo(title="Информация",message="Файл сохранен успешно.\nЧтобы обработать новые файлы, выберите их, и список обновится")
+    ##удаление файла в автоматическом режиме
+    def delete_file_auto(number, text):
+        global save_file, filepath_arr
+        if number == 1:
+            filepath_arr[0] = " "
+            text.delete("1.0", END)
+            if filepath_arr[1] != " ": text.insert(END, filepath_arr[1] + "\n")
+            if save_file != "": text.insert(END, save_file + "\n")
+        elif number == 2:
+            filepath_arr[1] = " "
+            text.delete("1.0", END)
+            if filepath_arr[0] != " ": text.insert(END, filepath_arr[0] + "\n")
+            if save_file != "": text.insert(END, save_file + "\n")
+        elif number == 3:
+            save_file = ""
+            text.delete("1.0", END)
+            if filepath_arr[0] != " ": text.insert(END, filepath_arr[0] + "\n")
+            if filepath_arr[1] != " ": text.insert(END, filepath_arr[1] + "\n")
+    ##автоматический режим работы
+    def auto_mode():
+        ##перерисовка главного окна. работа в автоматическом режиме
+        label_mode.destroy()
+        button_auto.destroy()
+        button_manual.destroy()
+        for c in range(6): root.columnconfigure(index = c, weight=1)
+        for r in range(6): root.rowconfigure(index=r, weight=1)
+        text_chosen = ScrolledText(height=7, wrap="char")
+        text_chosen.grid(row=5, column=1, columnspan=4, sticky=N)
+        button_style = ttk.Style()
+        button_style.configure("My.TButton", font="helvetica 12")
+        label_choose = ttk.Label(text="     Выберите файлы с субтитрами", font="Arial 24")
+        label_choose.grid(row=0, column=1, columnspan=3)
+        label_open_1 = ttk.Label(text="Субтитры файла №1   ", font="Arial 13")
+        label_open_1.grid(row=1, column=1, sticky=E)
+        label_open_2 = ttk.Label(text="Субтитры файла №2   ", font="Arial 13")
+        label_open_2.grid(row=2, column=1, sticky=E)
+        label_save = ttk.Label(text="Объединить и сохранить в", font="Arial 13")
+        label_save.grid(row=3, column=1, sticky=E)
+        button_open1 = ttk.Button(text="Выбрать файл №1", command=lambda: open_file_auto(text_chosen), width=25,
+                                  style="My.TButton")
+        button_open1.grid(row=1, column=2, sticky=E)
+        button_open2 = ttk.Button(text="Выбрать файл №2", command=lambda: open_file_auto(text_chosen), width=25,
+                                  style="My.TButton")
+        button_open2.grid(row=2, column=2, sticky=E)
+        button_save = ttk.Button(text="Выбрать\Создать файл №3", command=lambda: save_file_auto(text_chosen), width=25,
+                                 style="My.TButton")
+        button_save.grid(row=3, column=2, sticky=E)
+        label_opened_files = ttk.Label(text="История выбранных файлов", font="Arial 11")
+        label_opened_files.grid(row=4, column=2, sticky=SW)
+        button_start = ttk.Button(text="Выполнить", command=auto_execution, style="My.TButton", width = 14)
+        button_start.grid(row=4, column=3)
+        button_delete_1 = ttk.Button(text = "Удалить файл №1", width = 18, style="My.TButton", command = lambda: delete_file_auto(1, text_chosen))
+        button_delete_1.grid(row = 1, column = 3)
+        button_delete_2 = ttk.Button(text = "Удалить файл №2", width = 18, style="My.TButton", command = lambda: delete_file_auto(2, text_chosen))
+        button_delete_2.grid(row = 2, column = 3)
+        button_delete_3 = ttk.Button(text = "Удалить файл №3", width = 18, style="My.TButton", command = lambda: delete_file_auto(3, text_chosen))
+        button_delete_3.grid(row = 3, column = 3)
+        button_back = ttk.Button(text = "Назад", command = main_window, width = 14, style="My.TButton")
+        button_back.grid(row = 5, column = 3, sticky = S, pady = [12, 12])
+    ##выбрать файлы (№1 и №2) с субтитрами в автоматическом режиме
+    def open_file_auto(text):
+        global filepath_arr, encoding_of_file_arr
+        if filepath_arr == [" ", " "] and save_file == "": text.delete("1.0", END)
+        filepath = filedialog.askopenfilename(filetypes=[("SRT-файл", ".srt")])
+        if filepath != "":
+            detector = UniversalDetector()
+            with open(filepath, "rb") as file:
+                for line in file:
+                    detector.feed(line)
+                    if detector.done:
+                        break
+                detector.close()
+                encoding_of_file = detector.result["encoding"]
+            if text.get("1.0", END) != "\n": text.insert(END, "\n")
+            text.insert(END, filepath)
+            if filepath_arr[0] == " ":
+                filepath_arr[0] = filepath
+                encoding_of_file_arr[0] = encoding_of_file
+            elif filepath_arr[1] == " ":
+                filepath_arr[1] = filepath
+                encoding_of_file_arr[1] = encoding_of_file
+    ##сохранить файл с объединенными субтитрами в автоматическом режиме
+    def save_file_auto(text):
+        global save_file, filepath_arr
+        if filepath_arr == [" ", " "] and save_file == "": text.delete("1.0", END)
+        save_file = filedialog.asksaveasfilename(defaultextension=".srt")
+        if save_file != "":
+            with open(save_file, "w", encoding="utf-8") as sfile:
+                sfile.write("")
+            if text.get("1.0", END) != "\n": text.insert(END, "\n")
+            text.insert(END, save_file)
+    def manual_mode(): ##ручной режим работы
+        label_mode.destroy()
+        button_auto.destroy()
+        button_manual.destroy()
+        for c in range(6): root.columnconfigure(index=c, weight=1)
+        root.rowconfigure(index=0, weight=3)
+        root.rowconfigure(index=1, weight=5)
+        root.rowconfigure(index=2, weight=3)
+        label_left = ttk.Label(text="Основные субтитры", font="Arial 13")
+        label_left.grid(row=0, column=0, columnspan=3)
+        label_right = ttk.Label(text="Подстраиваемые субтитры", font="Arial 13")
+        label_right.grid(row=0, column=3, columnspan=3)
+        text_1 = ScrolledText()
+        text_1.grid(row=1, column=0, sticky=NSEW, columnspan=3)
+        text_2 = ScrolledText()
+        text_2.grid(row=1, column=3, sticky=NSEW, columnspan=3)
+        btn_1 = ttk.Button(text="Выбрать файл №1", command=lambda text=text_1: open_file_manual(text), width = 17)
+        btn_1.grid(row=2, column=0)
+        btn_2 = ttk.Button(text="Сохранить файл", command=lambda text=text_1: save_file_manual(text), width = 17)
+        btn_2.grid(row=2, column=1)
+        btn_3 = ttk.Button(text="Выбрать файл №2", command=lambda text=text_2: open_file_manual(text), width = 17)
+        btn_3.grid(row=2, column=3)
+        btn_4 = ttk.Button(text = "Очистить", width = 17, command=lambda text=text_1: delete_file_manual(text))
+        btn_4.grid(row=2, column=2)
+        btn_5 = ttk.Button(text = "Очистить", width = 17, command=lambda text=text_2: delete_file_manual(text))
+        btn_5.grid(row=2, column=4)
+        button_back = ttk.Button(text = "Назад", command = main_window, width = 17)
+        button_back.grid(row = 2, column = 5)
+        root.mainloop()
+    ##открытие файла в ручном режиме
+    def open_file_manual(text_num):
+        filepath = filedialog.askopenfilename(filetypes=[("SRT-файл", ".srt")])
+        if filepath != "":
+            detector = UniversalDetector()
+            with open(filepath, "rb") as file:
+                for line in file:
+                    detector.feed(line)
+                    if detector.done:
+                        break
+                detector.close()
+                encoding_of_file = detector.result["encoding"]
+            with open(filepath, "r", encoding=encoding_of_file) as file:
+                text = file.read()
+                text_num.delete("1.0", END)
+                text_num.insert("1.0", text)
+    ##сохранение файла в ручном режиме
+    def save_file_manual(text_num):
+        filepath = filedialog.asksaveasfilename(defaultextension=".srt")
+        if filepath != "":
+            text = text_num.get("1.0", END)
+            with open(filepath, "w", encoding="utf-8") as file:
+                file.write(text)
+            showinfo(title="Информация", message="Файл сохранен успешно")
+    def delete_file_manual(text): ##удаление файла в ручном режиме
+        text.delete("1.0", END)
+    for i in root.grid_slaves(): 
+        i.destroy()
+    button_style = ttk.Style()
+    button_style.configure("My.TButton", font="helvetica 14")
+    label_mode = ttk.Label(text="Выберите режим создания\n    двуязычных субтитров", font="Arial 24")
+    label_mode.pack(pady = [100, 20])
+    button_auto = ttk.Button(text="Автоматический", command=auto_mode, width=25, style="My.TButton")
+    button_auto.pack(pady = 10)
+    button_manual = ttk.Button(text="Ручной", width=25, style="My.TButton", command=manual_mode)
+    button_manual.pack()
+if __name__ == '__main__':
+    root = Tk()
+    root.title("Создание двуязычных субтитров")
+    root.geometry("850x550+270+100")
+    filepath_arr, encoding_of_file_arr = [" ", " "], [" ", " "]
+    num_stroka = 0
+    line_rus, line_eng, save_file = " ", " ", ""
+    main_window()
+    root.mainloop()
